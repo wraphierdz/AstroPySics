@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Hasil Observasi</title>
+</head>
+<body>
+    <h1>Hasil Observasi</h1>
+    {% if result.error %}
+        <p>Error: {{ result.error }}</p>
+    {% else %}
+        <h2>Observer Data</h2>
+        <p>Target : {{ result.Target }}</p>
+        <p>Latitude (φ): {{ result.Latitude }}</p>
+        <p>Longitude (λ): {{ result.Longitude }}</p>
+        <p>Time: {{ result.Time }} UTC</p>
+        <h2>Target Data</h2>
+        <p>Right Ascension (α): {{ result.RA }}</p>
+        <p>Declination (δ): {{ result.Dec }}</p>
+        <p>Altitude: {{ result.Altitude }}</p>
+        <p>Azimuth: {{ result.Azimuth }}</p>
+    {% endif %}
+    <a href="/">Back</a>
+</body>
+</html>
