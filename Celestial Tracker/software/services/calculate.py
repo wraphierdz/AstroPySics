@@ -1,9 +1,17 @@
 from flask import request
 from skyfield.api import load
-from utils import degDecimal, celesCoor, vectorFrom, vec_eq, HA, eq_altz
-
+from utils.degDecimal import degDecimal
+from utils.celesCoor import celesCoor
+from utils.vectorFrom import vectorFrom
+from utils.vec_eq import vec_eq
+from utils.HA import HA
+from utils.eq_altz import eq_altz
 
 def calculate():
+    """Calculate all data processed from utils to display on website.
+    Input data = Target name, Latitude, longitude, time.
+    Output data = RA, declination, altitude, azimuth"""
+
     # Target input
     target = (request.form['target']).lower()
 
@@ -52,5 +60,6 @@ def calculate():
             'Altitude': alt,
             'Azimuth': az
         }
+        return result
     except Exception as ex:
-        result = {'Error':str(ex)}
+        return {'Error':str(ex)}

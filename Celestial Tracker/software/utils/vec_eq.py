@@ -1,8 +1,8 @@
 import numpy as np
-import celesCoor
+from . import celesCoor
 
 def vec_eq(x, y, z, r, decimal=False):
-    """Converts x, y, z, r target vector from observer position
+    """Transforms x, y, z, r target vector from observer position
     to equatorial coordinate system (Right Acension α, Declination δ)"""
 
     # Format desimal
