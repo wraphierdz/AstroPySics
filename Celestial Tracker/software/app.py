@@ -1,8 +1,6 @@
-from flask import Flask, request, render_template, jsonify
-from datetime import datetime
+from flask import Flask, request, render_template
 from skyfield.api import Topos, load
 import numpy as np
-import re
 
 app = Flask(__name__)
 
@@ -27,7 +25,7 @@ def celesCoor(decimal, hour=False, pnt=2):
 # cari vektor bulan (x,y,z,r) terhadap koordinat geografis observer
 def vectorFrom(object, lat, long, time):
     # Data efemeris posisi
-    eph = load('de440.bsp')
+    eph = load('de421.bsp')
     earth = eph['earth']
     surfaceLoc = Topos(latitude=lat, longitude=long)            # posisi observer (lat, long, elevation)
 
@@ -71,10 +69,6 @@ def eq_altz(lat, dec, ra, ha):
     az = (np.degrees(az) + 360) % 360
 
     return celesCoor(np.degrees(alt)), celesCoor(az)
-
-def toUTC(t):
-    ts = load.timescale
-    return ts.utc(t[1], t[2], t[3], t[4], t[5], t[6])
 
 @app.route('/')
 def home():
