@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template
+from flask import Flask, request, render_template, jsonify
 from skyfield.api import Topos, load
 import numpy as np
 
@@ -57,7 +57,7 @@ def HA(lst, ra):
         ha += 360
     return ha
 
-def eq_altz(lat, dec, ra, ha):
+def eq_altz(lat, dec, ra, ha, decimal=False):
     lat = np.radians(lat)
     dec = np.radians(dec)
     ha = np.radians(ha)
@@ -68,7 +68,9 @@ def eq_altz(lat, dec, ra, ha):
     az = np.atan2(-np.cos(dec) * np.sin(ha), np.sin(dec) - np.sin(lat) * np.sin(alt))
     az = (np.degrees(az) + 360) % 360
 
-    return celesCoor(np.degrees(alt)), celesCoor(az)
+    if decimal == False:
+        return celesCoor(np.degrees(alt)), celesCoor(az)
+    return np.degrees(alt), az
 
 @app.route('/')
 def home():
@@ -148,6 +150,51 @@ def calculate():
         
     return render_template('result.html', result=result)
 
+@app.route('/getAltz', methods=['GET'])
+def getAltz():
+    try:
+        target = (request.form['target']).lower()
+
+        # Location input
+        loc = ['latDeg', 'latMin', 'latSec', 'latDir', 'longDeg', 'longMin', 'longSec', 'longDir']
+        lats = [request.form.get(i) for i in loc[:4]]
+        longs = [request.form.get(i) for i in loc[4:]]
+
+        latDeg, latMin, latSec = map(float, lats[:-1])
+        longDeg, longMin, longSec = map(float, longs[:-1])
+        latDir, longDir = lats[-1], longs[-1]
+
+        latitude = degDecimal(latDeg, latMin, latSec)
+        longitude = degDecimal(longDeg, longMin, longSec)
+
+        if latDir == "S":
+            latitude = -latitude
+        if longDir == "W":
+            longitude = -longitude
+
+        # Time input
+        observeTime = request.form.get("observeTime")
+        date, time = observeTime.split('T')
+        yr, mon, d = map(int, date.split('-'))
+        h, mins = map(int, time.split(':'))
+        h -= longitude//15 # convert ke utc
+
+        # Let's calculate
+        ts = load.timescale()
+        t = ts.utc(yr, mon, d, h, mins)
+        lst = (t.gast + longitude / 15) % 24
+
+        x, y, z, r = vectorFrom(target, latitude, longitude, t)
+        ra, dec = vec_eq(x, y, z, r, decimal=True)
+        ha = HA(lst, ra)
+        alt, az = eq_altz(latitude, dec, ra, ha, decimal=True)
+
+        return jsonify({'az' : az, 'alt' : alt, 'ra' : ra, 'dec' : dec})
+    
+    except Exception as ex:
+        return jsonify({'Error' : str(ex)})
+
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=5000)
     

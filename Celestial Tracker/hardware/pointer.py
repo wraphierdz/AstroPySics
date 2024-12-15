@@ -1,33 +1,92 @@
-import machine
+import network
+import urequests
 import time
+from machine import Pin, PWM
+import ujson
 
-# Inisialisasi pin untuk PWM
-servo1 = machine.Pin(4, machine.Pin.OUT)
-pwm = machine.PWM(servo1)
+ssid = 'Playmedia'
+password = '160527SF'
 
-# Set frekuensi PWM ke 50 Hz
-pwm.freq(50)
+azPin = Pin(4, Pin.OUT)
+altPin1 = Pin(12, Pin.OUT)
+altPin2 = Pin(13, Pin.OUT)
 
-# while True:
-#     pwm.duty(70)
-#     time.sleep(1)
+azServo = PWM(azPin, freq=50)
+altServo1 = PWM(altPin1, freq=50)
+altServo2 = PWM(altPin2, freq=50)
 
-# Uji berbagai posisi servo
-while True:
-    print("Servo ke sudut 0°")
-    pwm.duty(30)  # Sesuaikan nilai ini jika servo tidak bergerak
-    time.sleep(1)
+def connectWifi():
+    print('Connecting to WiFi...')
+    wlan = network.WLAN(network.STA_IF)
+    wlan.active(True)
+    wlan.connect(ssid, password)
+    while not wlan.isconnected():
+        time.sleep(1)
+        print('.')
+    print('Connected to WiFi')
+    print('IP Adddress:', wlan.ifconfig()[0])
 
+def testConnection():
+    url = "http://192.168.1.10:5000/"
+    try:
+        response = urequests.get(url)
+        print('Server reachable:', response.status_code)
+    except Exception as ex:
+        print('Connection error:', ex)
 
-    print("Servo ke sudut 90°")
-    pwm.duty(77)  # Sesuaikan nilai ini jika servo tidak bergerak
-    time.sleep(1)
+def getAltz():
+    url = r"http://192.168.1.10:5000/getAltz"
+    try:
+        response = urequests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            print('received data:', data)
 
-    print("Servo ke sudut 180°")
-    pwm.duty(123)  # Sesuaikan nilai ini jika servo tidak bergerak
-    time.sleep(1)
+            if 'az' in data and 'alt' in data:
+                return data['az'], data['alt']
+            else:
+                print('Required keys not found in the data')
+                return None
+        else:
+            print('failed to get data, status code:', response.status_code)
+            return None
+    except Exception as ex:
+        print('Error:', ex)
+        return None
 
+def Yservo(y):
+    if y > 0:
+        servo = abs(y - 90 )
+    else:
+        servo = 90 - y
+    return servo
 
-# ampy --port COM7 run pointer.py
-# esptool --port COM7 erase_flash
-# esptool --port COM7 write_flash -z 0x1000 ESP32_GENERIC-20241129-v1.24.1.bin
+def moveServo(x, y):
+    xPos = int( 30 + ((x % 180) / 180) * 93)
+    yPos = int( 30 + ((Yservo(y)) / 180) * 93)
+
+    azServo.duty(xPos)
+    altServo1.duty(yPos)
+    altServo2.duty(yPos)
+    print('Az move to:', x)
+    print('Alt move to:', y)
+    print('servo rotation:', xPos)
+
+def main():
+    connectWifi()
+    testConnection()
+    moveServo(0,0)
+
+    while True:
+        data = getAltz()
+
+        if data:
+            try:
+                azimuth, altitude = data
+                moveServo(azimuth, altitude)
+            except Exception as ex:
+                print('Error parsing data:', ex)
+        
+        time.sleep(2.5)
+
+main()
