@@ -35,7 +35,7 @@ def testConnection():
         print('Connection error:', ex)
 
 def getAltz():
-    url = r"http://192.168.1.10:5000/getAltz"
+    url = r"http://192.168.1.10:5000/getAltz?target=moon&latDeg=7&latMin=16&latSec=11&latDir=S&longDeg=112&longMin=46&longSec=57&longDir=E&observeTime=2024-12-15T18:00"
     try:
         response = urequests.get(url)
         if response.status_code == 200:
@@ -62,15 +62,15 @@ def Yservo(y):
     return servo
 
 def moveServo(x, y):
-    xPos = int( 30 + ((x % 180) / 180) * 93)
-    yPos = int( 30 + ((Yservo(y)) / 180) * 93)
+    xPos = round( 30 + ((x % 180) / 180) * 93)
+    yPos = round( 30 + ((Yservo(y)) / 180) * 93)
 
     azServo.duty(xPos)
     altServo1.duty(yPos)
     altServo2.duty(yPos)
     print('Az move to:', x)
     print('Alt move to:', y)
-    print('servo rotation:', xPos)
+    print('servo rotation:', x%180)
 
 def main():
     connectWifi()

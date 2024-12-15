@@ -153,16 +153,16 @@ def calculate():
 @app.route('/getAltz', methods=['GET'])
 def getAltz():
     try:
-        target = (request.form['target']).lower()
-
-        # Location input
-        loc = ['latDeg', 'latMin', 'latSec', 'latDir', 'longDeg', 'longMin', 'longSec', 'longDir']
-        lats = [request.form.get(i) for i in loc[:4]]
-        longs = [request.form.get(i) for i in loc[4:]]
-
-        latDeg, latMin, latSec = map(float, lats[:-1])
-        longDeg, longMin, longSec = map(float, longs[:-1])
-        latDir, longDir = lats[-1], longs[-1]
+        target = request.args.get('target').lower()
+        latDeg = float(request.args.get('latDeg'))
+        latMin = float(request.args.get('latMin'))
+        latSec = float(request.args.get('latSec'))
+        latDir = request.args.get('latDir')
+        longDeg = float(request.args.get('longDeg'))
+        longMin = float(request.args.get('longMin'))
+        longSec = float(request.args.get('longSec'))
+        longDir = request.args.get('longDir')
+        observeTime = request.args.get("observeTime")
 
         latitude = degDecimal(latDeg, latMin, latSec)
         longitude = degDecimal(longDeg, longMin, longSec)
@@ -173,7 +173,6 @@ def getAltz():
             longitude = -longitude
 
         # Time input
-        observeTime = request.form.get("observeTime")
         date, time = observeTime.split('T')
         yr, mon, d = map(int, date.split('-'))
         h, mins = map(int, time.split(':'))
