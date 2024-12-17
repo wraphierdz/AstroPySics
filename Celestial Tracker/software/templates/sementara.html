@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tracker Objek Langit</title>
+</head>
+<body>
+    <h1>Tracker Objek Langit</h1>
+    <form action="/calculate" method="POST">
+        <label>Latitude:</label><br>
+        Derajat: <input type="number" name="lat_deg" required> 
+        Arcmin: <input type="number" name="lat_min" required> 
+        Arcsec: <input type="number" step="0.1" name="lat_sec" required><br><br>
+
+        <label>Longitude:</label><br>
+        Derajat: <input type="number" name="lon_deg" required>
+        Arcmin: <input type="number" name="lon_min" required>
+        Arcsec: <input type="number" step="0.1" name="lon_sec" required><br><br>
+
+        <label for="datetime">Waktu Observasi:</label>
+        <input type="datetime-local" id="datetime" name="datetime" required><br><br>
+
+        <label>Objek Langit:</label>
+        <select name="object">
+            <option value="Moon">Bulan</option>
+            <option value="Sun">Matahari</option>
+        </select><br><br>
+
+        <button type="submit">Hitung Koordinat</button>
+    </form>
+</body>
+</html>

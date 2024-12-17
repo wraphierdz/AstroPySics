@@ -1,92 +1,76 @@
-import network
-import urequests
-import time
-from machine import Pin, PWM
 import ujson
+from machine import Pin, PWM
+import network
+import socket
+import time
 
-ssid = 'Playmedia'
-password = '160527SF'
+# connect to wifi
+ssid = "Playmedia"
+password = "160527SF"
 
-azPin = Pin(4, Pin.OUT)
-altPin1 = Pin(12, Pin.OUT)
-altPin2 = Pin(13, Pin.OUT)
-
-azServo = PWM(azPin, freq=50)
-altServo1 = PWM(altPin1, freq=50)
-altServo2 = PWM(altPin2, freq=50)
-
-def connectWifi():
-    print('Connecting to WiFi...')
-    wlan = network.WLAN(network.STA_IF)
-    wlan.active(True)
+wlan = network.WLAN(network.STA_IF)
+wlan.active(True)
+if not wlan.isconnected():
+    print("Connecting to Wi-Fi...")
     wlan.connect(ssid, password)
     while not wlan.isconnected():
-        time.sleep(1)
-        print('.')
-    print('Connected to WiFi')
-    print('IP Adddress:', wlan.ifconfig()[0])
+        pass
+print("Connected to Wi-Fi")
+print("IP address:", wlan.ifconfig()[0])
 
-def testConnection():
-    url = "http://192.168.1.10:5000/"
-    try:
-        response = urequests.get(url)
-        print('Server reachable:', response.status_code)
-    except Exception as ex:
-        print('Connection error:', ex)
+# socket server
+s = socket.socket()
+s.bind(('', 80))
+s.listen(5)
 
-def getAltz():
-    url = r"http://192.168.1.10:5000/getAltz?target=moon&latDeg=7&latMin=16&latSec=11&latDir=S&longDeg=112&longMin=46&longSec=57&longDir=E&observeTime=2024-12-15T18:00"
-    try:
-        response = urequests.get(url)
-        if response.status_code == 200:
-            data = response.json()
-            print('received data:', data)
+# servo
+Xpin = Pin(4, Pin.OUT)
+y1pin = Pin(12, Pin.OUT)
+y2pin = Pin(13, Pin.OUT)
 
-            if 'az' in data and 'alt' in data:
-                return data['az'], data['alt']
-            else:
-                print('Required keys not found in the data')
-                return None
-        else:
-            print('failed to get data, status code:', response.status_code)
-            return None
-    except Exception as ex:
-        print('Error:', ex)
-        return None
+Xservo = PWM(Xpin, freq=50)
+y1servo = PWM(y1pin, freq=50)
+y2servo = PWM(y2pin, freq=50)
 
-def Yservo(y):
-    if y > 0:
-        servo = abs(y - 90 )
+def moveServo(axis, angle):
+    if axis == 'x':
+        angle = 360 - angle if angle > 180 else 180 - angle
+        xPos = round( 30 + (angle / 180) * 93)
+        Xservo.duty(xPos)
+        print('Az move to:', angle)
+
+    elif axis == 'y':
+        angle = abs(angle - 90) if angle > 0 else 90 - angle
+        yPos = round( 30 + (angle / 180) * 93)
+        y1servo.duty(yPos)
+        y2servo.duty(yPos)
+        print('Alt move to:', angle)
+
+    print('servo rotation:', angle % 180)
+
+while True:
+    cl, addr = s.accept()
+    print("Client connected from", addr)
+    request = str(cl.recv(1024))
+    print("Request:", request)
+
+    if "POST" in request:
+        _, body = request.split('\r\n\r\n', 1)
+        data = ujson.loads(body)
+
+        alt = data.get('altitude', 0)
+        az = data.get('azimuth', 0)
+
+        moveServo('x', az)
+        moveServo('y', alt)
+
+        response = 'HTTP/1.1 200 OK\n\nData received!'
+        cl.send(response)
     else:
-        servo = 90 - y
-    return servo
+        # 404 Not Found
+        response = "HTTP/1.1 404 Not Found\n\nRoute Not Found"
+        cl.send(response)
+    
+    cl.close()
+    time.delay(1)
 
-def moveServo(x, y):
-    xPos = round( 30 + ((x % 180) / 180) * 93)
-    yPos = round( 30 + ((Yservo(y)) / 180) * 93)
-
-    azServo.duty(xPos)
-    altServo1.duty(yPos)
-    altServo2.duty(yPos)
-    print('Az move to:', x)
-    print('Alt move to:', y)
-    print('servo rotation:', x%180)
-
-def main():
-    connectWifi()
-    testConnection()
-    moveServo(0,0)
-
-    while True:
-        data = getAltz()
-
-        if data:
-            try:
-                azimuth, altitude = data
-                moveServo(azimuth, altitude)
-            except Exception as ex:
-                print('Error parsing data:', ex)
-        
-        time.sleep(2.5)
-
-main()

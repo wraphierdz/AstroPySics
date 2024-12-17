@@ -26,9 +26,22 @@
         input[type="text"], input[type="number"], input[type="datetime-local"] {
             padding: 5px;
             font-size: 1em;
+            border-radius: 10px;
         }
+        
+        select {
+            background-color: #007bff;
+            border-radius: 10px;
+            color: white;
+            border: none;
+            padding: 5px 5px;
+            font-size: 0.8em;
+            cursor: pointer;
+        }
+
         button {
             background-color: #007bff;
+            border-radius: 10px;
             color: white;
             border: none;
             padding: 10px 15px;
@@ -42,10 +55,11 @@
 </head>
 <body>
     <h1>Celestial Object Tracker</h1>
-    <form action="/calculate" method="POST">
+    <form>
+    <!-- <form action="/calculate" method="POST"> -->
         <!-- Target Input -->
         <div class="form-group">
-            <label for="target">Target (Object Name):</label>
+            <label>Target (Object Name):</label>
             <input type="text" id="target" name="target" required>
         </div>
 
@@ -53,9 +67,9 @@
         <div class="form-group">
             <label for="latitude">Latitude:</label>
             <div class="input-row">
-                <input type="number" id="latitude-deg" name="latDeg" placeholder="°" required>
-                <input type="number" id="latitude-min" name="latMin" placeholder="'" required>
-                <input type="number" id="latitude-sec" name="latSec" placeholder='"' required>
+                <input type="number" id="latitude-deg" name="latDeg" placeholder="°" min="0" max="90" required>
+                <input type="number" id="latitude-min" name="latMin" placeholder="'" min="0" max="60" required>
+                <input type="number" id="latitude-sec" name="latSec" placeholder='"' min="0" max="60" required>
                 <select name="latDir" id="latitude-dir" required>
                     <option value="N">N</option>
                     <option value="S">S</option>
@@ -67,9 +81,9 @@
         <div class="form-group">
             <label for="longitude">Longitude:</label>
             <div class="input-row">
-                <input type="number" id="longitude-deg" name="longDeg" placeholder="°" required>
-                <input type="number" id="longitude-min" name="longMin" placeholder="'" required>
-                <input type="number" id="longitude-sec" name="longSec" placeholder='"' required>
+                <input type="number" id="longitude-deg" name="longDeg" placeholder="°" min="0" max="180" required>
+                <input type="number" id="longitude-min" name="longMin" placeholder="'" min="0" max="60" required>
+                <input type="number" id="longitude-sec" name="longSec" placeholder='"' min="0" max="60" required>
                 <select name="longDir" id="longitude-dir" required>
                     <option value="E">E</option>
                     <option value="W">W</option>
@@ -88,3 +102,5 @@
     </form>
 </body>
 </html>
+
+<!--------------------------###################------------------------->

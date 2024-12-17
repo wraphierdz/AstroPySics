@@ -1,8 +1,15 @@
-from flask import Flask, request, render_template, jsonify
+from flask import Flask, request, render_template
 from skyfield.api import Topos, load
 import numpy as np
+import requests
 
 app = Flask(__name__)
+
+# IP ESP32 untuk komunikasi HTTP
+ESP32_SERVER_URL = "http://192.168.1.15/servo"
+
+def degDecimal(deg, arcmin, arcsec):
+    return deg + (arcmin / 60) + (arcsec / 3600)
 
 def degDecimal(deg, min, sec):
     return (deg + min/60 + sec/3600)
@@ -72,128 +79,64 @@ def eq_altz(lat, dec, ra, ha, decimal=False):
         return celesCoor(np.degrees(alt)), celesCoor(az)
     return np.degrees(alt), az
 
-@app.route('/')
-def home():
-    return render_template('index.html')
+def sendCoordinate(alt, az):
+    """Mengirim data Altitude dan Azimuth ke ESP32"""
+    try:
+        response = requests.post(ESP32_SERVER_URL, json={"altitude": alt, "azimuth": az})
+        return response.status_code == 200
+    except Exception as e:
+        print(f"Error mengirim data ke ESP32: {e}")
+        return False
 
-@app.route('/calculate', methods=['POST'])
+@app.route("/")
+def index():
+    """Halaman input HTML"""
+    return render_template("index.html")
+
+@app.route("/calculate", methods=["POST"])
 def calculate():
-    # Target input
-    target = (request.form['target']).lower()
-
-    # Location input
-    loc = ['latDeg', 'latMin', 'latSec', 'latDir', 'longDeg', 'longMin', 'longSec', 'longDir']
-    lats = [request.form.get(i) for i in loc[:4]]
-    longs = [request.form.get(i) for i in loc[4:]]
-
-    latDeg, latMin, latSec = map(float, lats[:-1])
-    longDeg, longMin, longSec = map(float, longs[:-1])
-    latDir, longDir = lats[-1], longs[-1]
-
+    """Menerima input, hitung koordinat, dan kirim ke ESP32"""
+    # Ambil data input dari form
+    target = request.form["target"].lower()
+    latDeg = int(request.form["latDeg"])
+    latMin = int(request.form["latMin"])
+    latSec = float(request.form["latSec"])
+    latDir = request.form["latDir"]
+    longDeg = int(request.form["longDeg"])
+    longMin = int(request.form["longMin"])
+    longSec = float(request.form["longSec"])
+    longDir = request.form["longDir"]
+    observeTime = request.form["observeTime"]
+    
+    # Konversi latitude dan longitude ke desimal
     latitude = degDecimal(latDeg, latMin, latSec)
     longitude = degDecimal(longDeg, longMin, longSec)
-
+    
     if latDir == "S":
         latitude = -latitude
     if longDir == "W":
         longitude = -longitude
 
     # Time input
-    observeTime = request.form.get("observeTime")
     date, time = observeTime.split('T')
     yr, mon, d = map(int, date.split('-'))
     h, mins = map(int, time.split(':'))
     h -= longitude//15 # convert ke utc
 
-    # Let's calculate
-    try:
-        ts = load.timescale()
-        t = ts.utc(yr, mon, d, h, mins)
-        lst = (t.gast + longitude / 15) % 24
+    ts = load.timescale()
+    t = ts.utc(yr, mon, d, h, mins)
+    lst = (t.gast + longitude / 15) % 24
 
-        x, y, z, r = vectorFrom(target, latitude, longitude, t)
-        ra, dec = vec_eq(x, y, z, r, decimal=True)
-        ha = HA(lst, ra)
-        alt, az = eq_altz(latitude, dec, ra, ha)
-
-        result = {
-            'Target': target,
-            'Latitude': celesCoor(latitude),
-            'Longitude': celesCoor(longitude),
-            'Time': (t.utc_datetime()).strftime('%d-%m-%Y %H-%M-%S'),
-            'RA': celesCoor(ra, hour=True),
-            'Dec': celesCoor(dec),
-            'Altitude': alt,
-            'Azimuth': az
-        }
-
-        print('target : ', target, flush=True)
-        print('Lat  :', latitude, flush=True)
-        print('Long  :', longitude, flush=True)
-        print('vector:', x, y, z, r, flush=True)
-        print('time  :', t, flush=True)
-        print('LST  :', lst, flush=True)
-        print('HA  :', ha, flush=True)
-        print('RA  :', ra, flush=True)
-        print('RA frmt:', result['RA'], flush=True)
-        print('Dec  :', dec, flush=True)
-        print('Dec frmt :', result['Dec'], flush=True)
-        print('Alt  :', alt, flush=True)
-        print('Az   :', az, flush=True)
-        print('latdeg', latDeg)
-        print('longdeg', longDeg)
-        print('latdir', latDir)
-        print('longdir', longDir)
-
-    except Exception as ex:
-        result = {'Error':str(ex)}
-        
-    return render_template('result.html', result=result)
-
-@app.route('/getAltz', methods=['GET'])
-def getAltz():
-    try:
-        target = request.args.get('target').lower()
-        latDeg = float(request.args.get('latDeg'))
-        latMin = float(request.args.get('latMin'))
-        latSec = float(request.args.get('latSec'))
-        latDir = request.args.get('latDir')
-        longDeg = float(request.args.get('longDeg'))
-        longMin = float(request.args.get('longMin'))
-        longSec = float(request.args.get('longSec'))
-        longDir = request.args.get('longDir')
-        observeTime = request.args.get("observeTime")
-
-        latitude = degDecimal(latDeg, latMin, latSec)
-        longitude = degDecimal(longDeg, longMin, longSec)
-
-        if latDir == "S":
-            latitude = -latitude
-        if longDir == "W":
-            longitude = -longitude
-
-        # Time input
-        date, time = observeTime.split('T')
-        yr, mon, d = map(int, date.split('-'))
-        h, mins = map(int, time.split(':'))
-        h -= longitude//15 # convert ke utc
-
-        # Let's calculate
-        ts = load.timescale()
-        t = ts.utc(yr, mon, d, h, mins)
-        lst = (t.gast + longitude / 15) % 24
-
-        x, y, z, r = vectorFrom(target, latitude, longitude, t)
-        ra, dec = vec_eq(x, y, z, r, decimal=True)
-        ha = HA(lst, ra)
-        alt, az = eq_altz(latitude, dec, ra, ha, decimal=True)
-
-        return jsonify({'az' : az, 'alt' : alt, 'ra' : ra, 'dec' : dec})
+    x, y, z, r = vectorFrom(target, latitude, longitude, t)
+    ra, dec = vec_eq(x, y, z, r, decimal=True)
+    ha = HA(lst, ra)
+    alt, az = eq_altz(latitude, dec, ra, ha, decimal=True)
     
-    except Exception as ex:
-        return jsonify({'Error' : str(ex)})
+    # Kirim koordinat ke ESP32
+    if sendCoordinate(alt, az):
+        return f"<h1>Data berhasil dikirim ke ESP32! Altitude: {alt}°, Azimuth: {az}°</h1>"
+    else:
+        return "<h1>Gagal mengirim data ke ESP32</h1>"
 
-
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
-    
+if __name__ == "__main__":
+    app.run(debug=True, host="0.0.0.0", port=5000)
